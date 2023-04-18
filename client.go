@@ -1,10 +1,13 @@
 package pusher
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +23,8 @@ type Client struct {
 	Events             chan *Event
 	Stop               chan bool
 	Errors             chan error
+	authUrl            string
+	connectionId       string
 	subscribedChannels *subscribedChannels
 	binders            map[string]chan *Event
 	m                  sync.Mutex
@@ -78,6 +83,12 @@ func (c *Client) listen() {
 		case "pusher:pong":
 		case "pusher:error":
 			c.sendError(fmt.Errorf("Event error received : %s", event.Data))
+		case "pusher:connection_established":
+			var data map[string]interface{}
+			if err := json.Unmarshal([]byte(event.Data.(string)), &data); err != nil {
+				c.sendError(fmt.Errorf("Error unmarshalling connection_established data : %s", err))
+			}
+			c.connectionId = data["socket_id"].(string)
 		default:
 			c.m.Lock()
 			ch, ok := c.binders[event.Event]
@@ -97,7 +108,31 @@ func (c *Client) Subscribe(channel string) (err error) {
 		err = fmt.Errorf("Channel %s already subscribed", channel)
 		return
 	}
-	err = websocket.Message.Send(c.ws, fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s"}}`, channel))
+
+	subData := fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s"}}`, channel)
+	if strings.HasPrefix(channel, "private-") {
+		var data map[string]interface{}
+		data["socket_id"] = c.connectionId
+		data["channel_name"] = channel
+
+		e := new(bytes.Buffer)
+		json.NewEncoder(e).Encode(data)
+		req, _ := http.NewRequest(c.authUrl, "POST", e)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+
+		var respData map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
+			return err
+		}
+		auth := respData["auth"].(string)
+		subData = fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s","auth":"%s"}}`, channel, auth)
+	}
+
+	err = websocket.Message.Send(c.ws, subData)
 	if err != nil {
 		return
 	}
@@ -164,7 +199,7 @@ func (c *Client) Close() error {
 }
 
 // NewCustomClient return a custom client
-func NewCustomClient(appKey, host, scheme string) (*Client, error) {
+func NewCustomClient(appKey, host, scheme string, authUrl string) (*Client, error) {
 	ws, err := NewWSS(appKey, host, scheme)
 	if err != nil {
 		return nil, err
@@ -177,7 +212,9 @@ func NewCustomClient(appKey, host, scheme string) (*Client, error) {
 		Stop:               make(chan bool),
 		Errors:             make(chan error),
 		subscribedChannels: sChannels,
-		binders:            make(map[string]chan *Event)}
+		binders:            make(map[string]chan *Event),
+		authUrl:            authUrl,
+	}
 	go pClient.heartbeat()
 	go pClient.listen()
 	return &pClient, nil
@@ -217,5 +254,5 @@ func NewWSS(appKey, host, scheme string) (ws *websocket.Conn, err error) {
 
 // NewClient initialize & return a Pusher client
 func NewClient(appKey string) (*Client, error) {
-	return NewCustomClient(appKey, "ws.pusherapp.com:443", "wss")
+	return NewCustomClient(appKey, "ws.pusherapp.com:443", "wss", "")
 }
