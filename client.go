@@ -24,7 +24,7 @@ type Client struct {
 	Stop               chan bool
 	Errors             chan error
 	authUrl            string
-	connectionId       string
+	ConnectionId       string
 	subscribedChannels *subscribedChannels
 	binders            map[string]chan *Event
 	m                  sync.Mutex
@@ -88,7 +88,8 @@ func (c *Client) listen() {
 			if err := json.Unmarshal([]byte(event.Data.(string)), &data); err != nil {
 				c.sendError(fmt.Errorf("Error unmarshalling connection_established data : %s", err))
 			}
-			c.connectionId = data["socket_id"].(string)
+			c.ConnectionId = data["socket_id"].(string)
+			fmt.Println("Connection established with id", c.ConnectionId)
 		default:
 			c.m.Lock()
 			ch, ok := c.binders[event.Event]
@@ -112,7 +113,7 @@ func (c *Client) Subscribe(channel string) (err error) {
 	subData := fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s"}}`, channel)
 	if strings.HasPrefix(channel, "private-") {
 		var data map[string]interface{}
-		data["socket_id"] = c.connectionId
+		data["socket_id"] = c.ConnectionId
 		data["channel_name"] = channel
 
 		e := new(bytes.Buffer)
