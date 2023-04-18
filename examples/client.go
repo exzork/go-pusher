@@ -5,7 +5,7 @@ package main
 // 		go run client.go
 
 import (
-	"go-pusher"
+	"github.com/exzork/go-pusher"
 	"log"
 	"time"
 )
@@ -16,7 +16,7 @@ const (
 
 func main() {
 
-	INIT:
+INIT:
 	log.Println("init...")
 	pusherClient, err := pusher.NewClient(APP_KEY)
 	// if you need to connect to custom endpoint
@@ -86,11 +86,11 @@ func main() {
 	for {
 		select {
 		case dataEvt := <-dataChannelTrade:
-			log.Println("ORDER BOOK: " + dataEvt.Data)
+			log.Println("ORDER BOOK: " + dataEvt.Data.(string))
 		case tradeEvt := <-tradeChannelTrade:
-			log.Println("TRADE: " + tradeEvt.Data)
+			log.Println("TRADE: " + tradeEvt.Data.(string))
 		case errEvt := <-errChannel:
-			log.Println("ErrEvent: " + errEvt.Data)
+			log.Println("ErrEvent: " + errEvt.Data.(string))
 			pusherClient.Close()
 			time.Sleep(time.Second)
 			goto INIT
