@@ -112,7 +112,8 @@ func (c *Client) Subscribe(channel string) (err error) {
 		e := new(bytes.Buffer)
 		json.NewEncoder(e).Encode(data)
 		req, _ := http.NewRequest(c.authUrl, "POST", e)
-		resp, err := http.DefaultClient.Do(req)
+		client := &http.Client{}
+		resp, err := client.Do(req)
 		if err != nil {
 			return err
 		}
