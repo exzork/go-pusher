@@ -24,7 +24,7 @@ type Client struct {
 	Stop               chan bool
 	Errors             chan error
 	authUrl            string
-	ConnectionId       string
+	SocketId           string
 	subscribedChannels *subscribedChannels
 	binders            map[string]chan *Event
 	m                  sync.Mutex
@@ -83,13 +83,6 @@ func (c *Client) listen() {
 		case "pusher:pong":
 		case "pusher:error":
 			c.sendError(fmt.Errorf("Event error received : %s", event.Data))
-		case "pusher:connection_established":
-			var data map[string]interface{}
-			if err := json.Unmarshal([]byte(event.Data.(string)), &data); err != nil {
-				c.sendError(fmt.Errorf("Error unmarshalling connection_established data : %s", err))
-			}
-			c.ConnectionId = data["socket_id"].(string)
-			fmt.Println("Connection established with id", c.ConnectionId)
 		default:
 			c.m.Lock()
 			ch, ok := c.binders[event.Event]
@@ -113,7 +106,7 @@ func (c *Client) Subscribe(channel string) (err error) {
 	subData := fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s"}}`, channel)
 	if strings.HasPrefix(channel, "private-") {
 		var data map[string]interface{}
-		data["socket_id"] = c.ConnectionId
+		data["socket_id"] = c.SocketId
 		data["channel_name"] = channel
 
 		e := new(bytes.Buffer)
@@ -201,7 +194,7 @@ func (c *Client) Close() error {
 
 // NewCustomClient return a custom client
 func NewCustomClient(appKey, host, scheme string, authUrl string) (*Client, error) {
-	ws, err := NewWSS(appKey, host, scheme)
+	ws, socketId, err := NewWSS(appKey, host, scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +208,7 @@ func NewCustomClient(appKey, host, scheme string, authUrl string) (*Client, erro
 		subscribedChannels: sChannels,
 		binders:            make(map[string]chan *Event),
 		authUrl:            authUrl,
-		ConnectionId:       "",
+		SocketId:           socketId,
 	}
 	go pClient.heartbeat()
 	go pClient.listen()
@@ -223,35 +216,40 @@ func NewCustomClient(appKey, host, scheme string, authUrl string) (*Client, erro
 }
 
 // NewWSS return a websocket connexion
-func NewWSS(appKey, host, scheme string) (ws *websocket.Conn, err error) {
+func NewWSS(appKey, host, scheme string) (ws *websocket.Conn, socketID string, err error) {
 	origin := "http://localhost/"
 	url := scheme + "://" + host + "/app/" + appKey + "?protocol=" + PROTOCOL_VERSION
 	ws, err = websocket.Dial(url, "", origin)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	var resp = make([]byte, 11000) // Pusher max message size is 10KB
 	n, err := ws.Read(resp)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	var eventStub EventStub
 	err = json.Unmarshal(resp[0:n], &eventStub)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	switch eventStub.Event {
 	case "pusher:error":
 		var ewe EventError
 		err = json.Unmarshal(resp[0:n], &ewe)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return nil, ewe
+		return nil, "", ewe
 	case "pusher:connection_established":
-		return ws, nil
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(eventStub.Data.(string)), &data); err != nil {
+			fmt.Println(fmt.Errorf("Error unmarshalling connection_established data : %s", err))
+		}
+		fmt.Println("Connection established with id", data["socket_id"])
+		return ws, data["socket_id"].(string), nil
 	}
-	return nil, errors.New("Ooooops something wrong happen")
+	return nil, "", errors.New("Ooooops something wrong happen")
 }
 
 // NewClient initialize & return a Pusher client

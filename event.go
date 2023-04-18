@@ -5,14 +5,15 @@ import "fmt"
 // EventStub contains just the "type" of event.
 // Knowing the type, we can then unmarshal again, into appropriate type.
 type EventStub struct {
-	Event string `json:"event"`
+	Event string      `json:"event"`
+	Data  interface{} `json:"data"`
 }
 
 // Event is a pusher event
 type Event struct {
-	Event   string `json:"event"`
+	Event   string      `json:"event"`
 	Data    interface{} `json:"data"`
-	Channel string `json:"channel"`
+	Channel string      `json:"channel"`
 }
 
 // EventError contains a structured error in its Data field.
