@@ -105,7 +105,7 @@ func (c *Client) Subscribe(channel string) (err error) {
 
 	subData := fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s"}}`, channel)
 	if strings.HasPrefix(channel, "private-") {
-		var data map[string]interface{}
+		data := make(map[string]interface{})
 		data["socket_id"] = c.SocketId
 		data["channel_name"] = channel
 
