@@ -11,7 +11,7 @@ type EventStub struct {
 // Event is a pusher event
 type Event struct {
 	Event   string `json:"event"`
-	Data    string `json:"data"`
+	Data    interface `json:"data"`
 	Channel string `json:"channel"`
 }
 
