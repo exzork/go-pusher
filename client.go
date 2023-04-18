@@ -215,6 +215,7 @@ func NewCustomClient(appKey, host, scheme string, authUrl string) (*Client, erro
 		subscribedChannels: sChannels,
 		binders:            make(map[string]chan *Event),
 		authUrl:            authUrl,
+		ConnectionId:       "",
 	}
 	go pClient.heartbeat()
 	go pClient.listen()
