@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -118,9 +119,11 @@ func (c *Client) Subscribe(channel string) (err error) {
 		}
 
 		var respData map[string]interface{}
-		if err := json.NewDecoder(resp.Body).Decode(&respData); err != nil {
-			return err
-		}
+		body, _ := io.ReadAll(resp.Body)
+
+		fmt.Println(string(body))
+		
+		json.Unmarshal(body, &respData)
 		auth := respData["auth"].(string)
 		subData = fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s","auth":"%s"}}`, channel, auth)
 	}
