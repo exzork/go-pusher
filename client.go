@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -106,11 +107,11 @@ func (c *Client) Subscribe(channel string, bearer string) (err error) {
 	subData := fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s"}}`, channel)
 	if strings.HasPrefix(channel, "private-") {
 
-		req, err := http.NewRequest(http.MethodPost, c.authUrl, nil)
-		req.Form = make(map[string][]string)
-		req.Form.Set("socket_id", c.SocketId)
-		req.Form.Set("channel_name", channel)
-		req.ParseForm()
+		data := url.Values{}
+		data.Set("channel_name", channel)
+		data.Set("socket_id", c.SocketId)
+
+		req, err := http.NewRequest(http.MethodPost, c.authUrl, strings.NewReader(data.Encode()))
 		if err != nil {
 			return err
 		}
