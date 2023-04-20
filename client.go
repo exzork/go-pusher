@@ -113,9 +113,10 @@ func (c *Client) Subscribe(channel string, bearer string) (err error) {
 		e := new(bytes.Buffer)
 		json.NewEncoder(e).Encode(data)
 
-		fmt.Println("send", e.String())
-
-		req, _ := http.NewRequest(http.MethodPost, c.authUrl, e)
+		req, err := http.NewRequest(http.MethodPost, c.authUrl, e)
+		if err != nil {
+			return err
+		}
 		req.Header.Set("Authorization", "Bearer "+bearer)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
