@@ -97,7 +97,7 @@ func (c *Client) listen() {
 }
 
 // Subscribe ..to a channel
-func (c *Client) Subscribe(channel string) (err error) {
+func (c *Client) Subscribe(channel string, bearer string) (err error) {
 	// Already subscribed ?
 	if c.subscribedChannels.contains(channel) {
 		err = fmt.Errorf("Channel %s already subscribed", channel)
@@ -113,6 +113,7 @@ func (c *Client) Subscribe(channel string) (err error) {
 		e := new(bytes.Buffer)
 		json.NewEncoder(e).Encode(data)
 		req, _ := http.NewRequest(http.MethodPost, c.authUrl, e)
+		req.Header.Set("Authorization", "Bearer "+bearer)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return err
@@ -122,7 +123,7 @@ func (c *Client) Subscribe(channel string) (err error) {
 		body, _ := io.ReadAll(resp.Body)
 
 		fmt.Println(string(body))
-		
+
 		json.Unmarshal(body, &respData)
 		auth := respData["auth"].(string)
 		subData = fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s","auth":"%s"}}`, channel, auth)
