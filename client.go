@@ -107,6 +107,7 @@ func (c *Client) Subscribe(channel string, bearer string) (err error) {
 	if strings.HasPrefix(channel, "private-") {
 
 		req, err := http.NewRequest(http.MethodPost, c.authUrl, nil)
+		req.Form = make(map[string][]string)
 		req.Form.Set("socket_id", c.SocketId)
 		req.Form.Set("channel_name", channel)
 		req.ParseForm()
