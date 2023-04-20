@@ -1,7 +1,6 @@
 package pusher
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -106,14 +105,11 @@ func (c *Client) Subscribe(channel string, bearer string) (err error) {
 
 	subData := fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s"}}`, channel)
 	if strings.HasPrefix(channel, "private-") {
-		data := make(map[string]interface{})
-		data["socket_id"] = c.SocketId
-		data["channel_name"] = channel
 
-		e := new(bytes.Buffer)
-		json.NewEncoder(e).Encode(data)
-
-		req, err := http.NewRequest(http.MethodPost, c.authUrl, e)
+		req, err := http.NewRequest(http.MethodPost, c.authUrl, nil)
+		req.Form.Set("socket_id", c.SocketId)
+		req.Form.Set("channel_name", channel)
+		req.ParseForm()
 		if err != nil {
 			return err
 		}
