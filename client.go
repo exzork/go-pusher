@@ -117,17 +117,15 @@ func (c *Client) Subscribe(channel string, bearer string) (err error) {
 		if err != nil {
 			return err
 		}
-		req.Header.Set("Authorization", "Bearer "+bearer)
+		req.Header = http.Header{
+			"Authorization": "Bearer " + bearer,
+		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return err
 		}
-
 		var respData map[string]interface{}
 		body, _ := io.ReadAll(resp.Body)
-
-		fmt.Println(string(body))
-
 		json.Unmarshal(body, &respData)
 		auth := respData["auth"].(string)
 		subData = fmt.Sprintf(`{"event":"pusher:subscribe","data":{"channel":"%s","auth":"%s"}}`, channel, auth)
