@@ -118,7 +118,7 @@ func (c *Client) Subscribe(channel string, bearer string) (err error) {
 			return err
 		}
 		req.Header = http.Header{
-			"Authorization": "Bearer " + bearer,
+			"Authorization": []string{"Bearer " + bearer},
 		}
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
